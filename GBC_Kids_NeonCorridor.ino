@@ -21,8 +21,9 @@ Adafruit_NeoPixel leds(NUM_LEDS, PIN_PIXEL, NEO_RGB + NEO_KHZ800);
 // Global Variables
 
 // Parameters
-#define STEP_INTERVAL   100      // (ms) interval for step effect
-#define LED_GROUPS      6         // Every x light lit up in sequence
+uint16_t StepInterval =  100;      // (ms) interval for step effect
+uint8_t LED_Groups = 6;         // Every x light lit up in sequence
+uint8_t effectMode = 0;         // Current sequence being played
 
 
 
@@ -43,7 +44,9 @@ void loop()
     return;
   }
 
-  if (millis() - stepTimer >= STEP_INTERVAL)
+  // effectMode = 2;
+
+  if (millis() - stepTimer >= StepInterval)
   {
     updateLEDs();
     stepTimer = millis();                     // Reset timer
@@ -59,24 +62,113 @@ void updateLEDs()
   // Updates LED state in modules array, then updates pixel output
 
   static uint8_t stepNum = 0;                 // Step number of sequence
-
-  // modules[0] = 255;
+  static uint16_t loopCount = 0;
+  static uint8_t lastRandNum = 0;
+  uint8_t randNum = 0;
 
   // Black output
   for (uint8_t i = 0; i < sizeof(modules); ++i)
     modules[i] = 0;
 
-  // Light the ones we want
-  for (uint8_t i = stepNum; i < sizeof(modules); i += LED_GROUPS)
+  loopCount++;  // Increment counter
+
+
+  switch (effectMode) 
   {
-    if (i < sizeof(modules))
-      modules[i] = 0xFF; 
+    case 0:     // Light two at a time (evenly spaced) running down the line
+
+      // Light the ones we want
+      for (uint8_t i = stepNum; i < sizeof(modules); i += LED_Groups)
+      {
+        if (i < sizeof(modules))
+          modules[i] = 0xFF; 
+      }
+
+      if (++stepNum >= LED_Groups)
+        stepNum = 0;
+
+      if (loopCount == 240)  // Reset variables and move to next pattern!
+      {
+        StepInterval = 50;
+        LED_Groups = 12;
+      }
+      else if (loopCount >= 360)
+      {
+        StepInterval = 100;
+        effectMode++;
+        loopCount = 0;
+        LED_Groups = 6;
+      }
+      break;
+
+    case 1:     // Same as case 1 but now backwards
+      // Light the ones we want
+      for (uint8_t i = stepNum; i <= sizeof(modules); i += LED_Groups)
+      {
+        if (i <= sizeof(modules))
+          modules[sizeof(modules) - i] = 0xFF; 
+      }
+
+      if (++stepNum >= LED_Groups)
+        stepNum = 0;
+
+      if (loopCount == 240)  // Reset variables and move to next pattern!
+      {
+        StepInterval = 50;
+        LED_Groups = 12;
+      }
+      else if (loopCount >= 360)
+      {
+        StepInterval = 100;
+        effectMode++;
+        loopCount = 0;
+        LED_Groups = 6;
+      }
+      break;
+
+    case 2:     // Light a random one
+
+      // Select a random module that isn't the same as the last one we chose
+      do 
+        randNum = random(sizeof(modules));
+      while (randNum == lastRandNum);
+
+      lastRandNum = randNum;    // Remember number for next time
+
+      // Light the ones we want
+      modules[randNum] = 0xFF;
+
+      if (loopCount >= 48)  // Reset variables and move to next pattern!
+      {
+        effectMode = 0;
+        StepInterval = 100;
+        loopCount = 0;
+      }
+      break;
+
+
+    default:
+      break;
   }
 
 
 
-  if (++stepNum >= LED_GROUPS)
-    stepNum = 0;
+  // // Light the ones we want
+  // for (uint8_t i = stepNum; i < sizeof(modules); i += LED_Groups)
+  // {
+  //   if (i < sizeof(modules))
+  //     modules[i] = 0xFF; 
+  // }
+
+
+
+  // if (++stepNum >= LED_Groups)
+  //   stepNum = 0;
+
+
+
+
+
 
   writeLEDs();                                // Display LEDs state
   
